@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Untitled Feature — Watch Now",
+  title: "Satluj (2026) — Watch the Film",
   description:
-    "Stream the film in adaptive quality. Leave a like, dislike, or thought.",
+    "Satluj (originally Punjab '95) — Honey Trehan's biographical drama on human rights activist Jaswant Singh Khalra, starring Diljit Dosanjh. Stream in adaptive quality.",
 };
 
 export default function RootLayout({
