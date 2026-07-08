@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# movie-site
 
-## Getting Started
+Part A of the single-movie website: a static Next.js frontend that plays a Cloudflare Stream video with placeholder like/dislike UI. Deployable to Cloudflare Pages.
 
-First, run the development server:
+## Local development
 
 ```bash
+npm install
+cp .env.example .env.local     # add your NEXT_PUBLIC_STREAM_VIDEO_ID
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Without a video ID the player renders a placeholder card so the layout still shows.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Content
 
-## Learn More
+Edit `src/lib/movie.ts` to set the title, tagline, description, runtime, and year.
 
-To learn more about Next.js, take a look at the following resources:
+## Build (static export)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Output lands in `out/`. That directory is what Cloudflare Pages serves.
 
-## Deploy on Vercel
+## Deploy to Cloudflare Pages
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push this repo to GitHub.
+2. In the Cloudflare dashboard: **Pages → Create → Connect to Git → select repo**.
+3. Framework preset: **Next.js (Static HTML Export)**.
+   - Build command: `npm run build`
+   - Build output directory: `out`
+4. Add environment variable: `NEXT_PUBLIC_STREAM_VIDEO_ID = <your Stream video UID>`.
+5. Save & deploy. Every push to `main` redeploys.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Cloudflare Stream setup
+
+1. In the Cloudflare dashboard, enable **Stream** and upload your MP4.
+2. Copy the video **UID** from the video's detail page.
+3. Set it as `NEXT_PUBLIC_STREAM_VIDEO_ID` in `.env.local` (dev) and in Pages settings (prod).
+
+The site embeds the Stream player at `https://iframe.videodelivery.net/<UID>`, which handles adaptive HLS encoding, poster, and caption support automatically.
+
+## What's here (Part A)
+
+- Cloudflare Stream iframe player
+- Title / tagline / description
+- Like / Dislike buttons (local-only — no persistence)
+- Mobile-responsive, keyboard-navigable, ARIA-labelled
+- Skip-to-player link for screen readers
+
+## What's next (Part B)
+
+Supabase-backed reactions, comments, session tracking, and GA4. See the project plan.
