@@ -26,15 +26,21 @@ npm run build
 
 Output lands in `out/`. That directory is what Cloudflare Pages serves.
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare (Workers Static Assets)
+
+Deployment uses Wrangler with the `wrangler.jsonc` at the repo root — it declares the `out/` directory as static assets and skips OpenNext auto-migration (which would break a static export).
 
 1. Push this repo to GitHub.
-2. In the Cloudflare dashboard: **Pages → Create → Connect to Git → select repo**.
-3. Framework preset: **Next.js (Static HTML Export)**.
-   - Build command: `npm run build`
-   - Build output directory: `out`
+2. In the Cloudflare dashboard, connect the repo (Workers & Pages → Create).
+3. Set the build settings:
+   - **Build command:** `npm run build`
+   - **Deploy command:** `npx wrangler deploy` (default)
+   - **Root directory:** `/`
+   - Leave "Output directory" blank — `wrangler.jsonc` controls it.
 4. Add environment variable: `NEXT_PUBLIC_STREAM_VIDEO_ID = <your Stream video UID>`.
 5. Save & deploy. Every push to `main` redeploys.
+
+The Worker name in `wrangler.jsonc` is `satlujmovie`. Change it there if you rename the project in Cloudflare.
 
 ## Cloudflare Stream setup
 
