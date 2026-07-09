@@ -1,10 +1,13 @@
+import { AnalyticsInit } from "@/components/AnalyticsInit";
 import { ReactionButtons } from "@/components/ReactionButtons";
+import { ShareButton } from "@/components/ShareButton";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { movie } from "@/lib/movie";
 
 export default function Home() {
   return (
     <div className="min-h-full bg-black text-zinc-100">
+      <AnalyticsInit />
       <a
         href="#player"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-1.5 focus:text-sm focus:text-black"
@@ -43,8 +46,11 @@ export default function Home() {
           <VideoPlayer title={movie.title} />
         </section>
 
-        <section aria-label="Reactions" className="flex flex-col gap-3">
-          <ReactionButtons />
+        <section aria-label="Reactions and sharing" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <ReactionButtons />
+            <ShareButton />
+          </div>
         </section>
 
         <section aria-label="Synopsis" className="flex flex-col gap-3">

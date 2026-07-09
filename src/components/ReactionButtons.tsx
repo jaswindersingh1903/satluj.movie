@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 type Reaction = "like" | "dislike" | null;
 
@@ -8,7 +9,14 @@ export function ReactionButtons() {
   const [reaction, setReaction] = useState<Reaction>(null);
 
   const toggle = (next: Exclude<Reaction, null>) => {
-    setReaction((current) => (current === next ? null : next));
+    setReaction((current) => {
+      const nextValue = current === next ? null : next;
+      trackEvent(
+        nextValue ? `reaction_${nextValue}` : "reaction_cleared",
+        { previous: current },
+      );
+      return nextValue;
+    });
   };
 
   return (
