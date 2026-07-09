@@ -1,3 +1,4 @@
+import { faq } from "@/lib/faq";
 import { movie } from "@/lib/movie";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://satluj.movie";
@@ -105,6 +106,18 @@ const graph = [
         item: `${siteUrl}/`,
       },
     ],
+  },
+  {
+    "@type": "FAQPage",
+    "@id": `${siteUrl}/#faq`,
+    mainEntity: faq.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: a,
+      },
+    })),
   },
 ];
 

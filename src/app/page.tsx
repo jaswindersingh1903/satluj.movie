@@ -2,6 +2,7 @@ import { AnalyticsInit } from "@/components/AnalyticsInit";
 import { CommentBox } from "@/components/CommentBox";
 import { CommentFeed } from "@/components/CommentFeed";
 import { DeveloperBadge } from "@/components/DeveloperBadge";
+import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
 import { ReactionButtons } from "@/components/ReactionButtons";
 import { ShareButton } from "@/components/ShareButton";
@@ -160,6 +161,8 @@ export default function Home() {
             </dl>
           </div>
         </section>
+
+        <Faq />
 
         <section
           id="comments"
