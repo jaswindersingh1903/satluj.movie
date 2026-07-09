@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getDisplayName, getVisitorId, trackEvent } from "@/lib/analytics";
 import { getSupabase } from "@/lib/supabase";
+import { ensureSessionInDb } from "@/lib/sync";
 
 const MAX_LEN = 2000;
 
@@ -24,6 +25,13 @@ export function CommentBox() {
     }
 
     setSubmitting(true);
+    try {
+      await ensureSessionInDb();
+    } catch (sessionErr) {
+      setSubmitting(false);
+      setError((sessionErr as Error).message);
+      return;
+    }
     const { error: err } = await client.from("comments").insert({
       session_id: getVisitorId(),
       display_name: getDisplayName(),

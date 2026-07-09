@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getVisitorId, trackEvent } from "@/lib/analytics";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { ensureSessionInDb } from "@/lib/sync";
 
 type Reaction = "like" | "dislike" | null;
 type Counts = { likes: number; dislikes: number };
@@ -16,6 +17,8 @@ export function ReactionButtons() {
     if (!client) return;
     const visitorId = getVisitorId();
     let mounted = true;
+
+    ensureSessionInDb().catch(() => {});
 
     client
       .from("counters")
@@ -73,13 +76,28 @@ export function ReactionButtons() {
     if (!client) return;
     const visitorId = getVisitorId();
 
+    try {
+      await ensureSessionInDb();
+    } catch {
+      // Roll back the optimistic UI if we can't create the session.
+      setReaction(previous);
+      return;
+    }
+
     if (nextValue === null) {
-      await client.from("reactions").delete().eq("session_id", visitorId);
+      const { error } = await client
+        .from("reactions")
+        .delete()
+        .eq("session_id", visitorId);
+      if (error) {
+        setReaction(previous);
+        console.error("reactions.delete failed", error);
+      }
       return;
     }
 
     const numeric = nextValue === "like" ? 1 : -1;
-    await client.from("reactions").upsert(
+    const { error } = await client.from("reactions").upsert(
       {
         session_id: visitorId,
         value: numeric,
@@ -87,6 +105,10 @@ export function ReactionButtons() {
       },
       { onConflict: "session_id" },
     );
+    if (error) {
+      setReaction(previous);
+      console.error("reactions.upsert failed", error);
+    }
   };
 
   const showCounts = isSupabaseConfigured;
