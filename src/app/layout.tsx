@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { BuyMeCoffee } from "@/components/BuyMeCoffee";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -101,7 +100,18 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <BuyMeCoffee />
+        <script
+          src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
+          data-name="BMC-Widget"
+          data-cfasync="false"
+          data-id="jaswindersingh"
+          data-description="Support me on Buy me a coffee!"
+          data-message="If this story matters to you, please consider donating to help keep this project online and support future initiatives."
+          data-color="#FF813F"
+          data-position="Right"
+          data-x_margin="18"
+          data-y_margin="18"
+        />
       </body>
     </html>
   );
