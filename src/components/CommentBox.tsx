@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getDisplayName, getVisitorId, trackEvent } from "@/lib/analytics";
 import { getSupabase } from "@/lib/supabase";
 import { ensureSessionInDb } from "@/lib/sync";
@@ -11,6 +11,11 @@ export function CommentBox() {
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("you");
+
+  useEffect(() => {
+    setDisplayName(getDisplayName());
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,9 +69,7 @@ export function CommentBox() {
       <div className="flex items-center justify-between text-xs text-zinc-500">
         <span>
           Posting as{" "}
-          <span className="text-zinc-300">
-            {typeof window === "undefined" ? "you" : getDisplayName()}
-          </span>
+          <span className="text-zinc-300">{displayName}</span>
         </span>
         <div className="flex items-center gap-3">
           <span aria-live="polite">

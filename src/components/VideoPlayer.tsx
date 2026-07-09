@@ -9,6 +9,7 @@ import {
   saveProgress,
   trackEvent,
 } from "@/lib/analytics";
+import { playhead, readTimestampParam } from "@/lib/playhead";
 
 type Props = { title: string };
 
@@ -18,7 +19,8 @@ export function VideoPlayer({ title }: Props) {
   const [resumeAt, setResumeAt] = useState<number | null>(null);
 
   useEffect(() => {
-    setResumeAt(getSavedProgress());
+    const t = readTimestampParam();
+    setResumeAt(t ?? getSavedProgress());
   }, []);
 
   useEffect(() => {
@@ -61,6 +63,13 @@ export function VideoPlayer({ title }: Props) {
     let resumed = false;
 
     const onLoadedMeta = () => {
+      const t = readTimestampParam();
+      if (t && video.duration && t < video.duration) {
+        video.currentTime = t;
+        resumed = true;
+        trackEvent("video_deeplink", { at: t, duration: video.duration });
+        return;
+      }
       const saved = getSavedProgress();
       if (
         saved &&
@@ -93,6 +102,7 @@ export function VideoPlayer({ title }: Props) {
       seekFrom = null;
     };
     const onTimeUpdate = () => {
+      playhead.current = video.currentTime;
       const now = Date.now();
       if (now - lastSaved < 5000) return;
       lastSaved = now;
@@ -133,8 +143,9 @@ export function VideoPlayer({ title }: Props) {
         controls
         playsInline
         preload="metadata"
+        poster="/poster.png"
         aria-label={`${title} — video player`}
-        className="absolute inset-0 h-full w-full bg-black"
+        className="absolute inset-0 h-full w-full bg-black object-contain"
       >
         Your browser does not support the video tag.
       </video>

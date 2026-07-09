@@ -12,10 +12,80 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://satluj.movie";
+
+const title = "Satluj Movie – Watch Free | Tribute to Jaswant Singh Khalra";
+const description =
+  "Watch Satluj online for free on the official website. A tribute to Jaswant Singh Khalra and a powerful story inspired by courage, justice, and human rights.";
+
 export const metadata: Metadata = {
-  title: "Satluj (2026) — Watch the Film",
-  description:
-    "Satluj (originally Punjab '95) — Honey Trehan's biographical drama on human rights activist Jaswant Singh Khalra, starring Diljit Dosanjh. Stream in adaptive quality.",
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  applicationName: "Satluj.movie",
+  keywords: [
+    "Satluj",
+    "Satluj movie",
+    "Satluj film",
+    "Satluj Punjabi movie",
+    "Watch Satluj online",
+    "Watch Satluj free",
+    "Satluj full movie",
+    "Satluj official website",
+    "Punjab '95",
+    "Jaswant Singh Khalra",
+    "Jaswant Singh Khalra movie",
+    "Jaswant Singh Khalra biography",
+    "Punjab human rights",
+    "Sikh history",
+    "Punjabi historical drama",
+    "Punjabi movie 2026",
+    "Honey Trehan",
+    "Diljit Dosanjh",
+    "true story Punjabi movie",
+    "based on true events",
+  ],
+  authors: [{ name: "Honey Trehan" }],
+  creator: "RSVP Movies · MacGuffin Pictures",
+  publisher: "Satluj.movie",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "video.movie",
+    url: "/",
+    siteName: "Satluj.movie",
+    title,
+    description,
+    locale: "en_US",
+    alternateLocale: ["pa_IN", "hi_IN"],
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 502,
+        alt: "Satluj (2026) — starring Diljit Dosanjh as Jaswant Singh Khalra",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/og-image.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+      "max-snippet": -1,
+    },
+  },
+  category: "Movies",
 };
 
 export default function RootLayout({
