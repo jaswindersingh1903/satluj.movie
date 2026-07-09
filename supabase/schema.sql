@@ -55,10 +55,16 @@ insert into public.counters (id, likes, dislikes)
 values ('reactions', 0, 0)
 on conflict (id) do nothing;
 
--- Auto-adjust counters when reactions change.
+-- Auto-adjust counters when reactions change. Self-healing: the row is
+-- upserted at the top of every trigger call so the counter never gets
+-- stuck at NULL if the seed insert was skipped.
 create or replace function public.tally_reactions()
 returns trigger language plpgsql as $$
 begin
+  insert into public.counters (id, likes, dislikes)
+  values ('reactions', 0, 0)
+  on conflict (id) do nothing;
+
   if (tg_op = 'INSERT') then
     update public.counters
        set likes    = likes    + case when new.value =  1 then 1 else 0 end,
