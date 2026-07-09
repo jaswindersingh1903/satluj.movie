@@ -1,42 +1,61 @@
-import { streamVideoId } from "@/lib/movie";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
+import { hlsSrc } from "@/lib/movie";
 
 type Props = {
   title: string;
 };
 
 export function VideoPlayer({ title }: Props) {
-  if (!streamVideoId) {
-    return (
-      <div
-        role="img"
-        aria-label="Video placeholder — set NEXT_PUBLIC_STREAM_VIDEO_ID to enable playback"
-        className="relative aspect-video w-full overflow-hidden rounded-xl bg-gradient-to-br from-zinc-800 via-zinc-900 to-black ring-1 ring-white/10"
-      >
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-          <div className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-widest text-zinc-300">
-            Preview
-          </div>
-          <p className="max-w-md text-sm text-zinc-400">
-            Set <code className="rounded bg-black/40 px-1.5 py-0.5 text-zinc-200">NEXT_PUBLIC_STREAM_VIDEO_ID</code> to
-            embed the Cloudflare Stream player.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const src = `https://iframe.videodelivery.net/${streamVideoId}?poster=https%3A%2F%2Fvideodelivery.net%2F${streamVideoId}%2Fthumbnails%2Fthumbnail.jpg%3Ftime%3D%26height%3D720`;
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = hlsSrc;
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true });
+      hls.loadSource(hlsSrc);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          setError("Playback error — try refreshing the page.");
+        }
+      });
+      return () => hls.destroy();
+    }
+
+    setError("Your browser does not support HLS playback.");
+  }, []);
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
-      <iframe
-        title={`${title} — video player`}
-        src={src}
-        loading="lazy"
-        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-        allowFullScreen
-        className="absolute inset-0 h-full w-full border-0"
-      />
+      <video
+        ref={videoRef}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={`${title} — video player`}
+        className="absolute inset-0 h-full w-full bg-black"
+      >
+        Your browser does not support the video tag.
+      </video>
+      {error && (
+        <div
+          role="alert"
+          className="absolute inset-x-0 bottom-0 bg-rose-900/80 px-4 py-2 text-sm text-rose-100"
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }

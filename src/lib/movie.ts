@@ -29,3 +29,4 @@ export const movie = {
 };
 
 export const streamVideoId = process.env.NEXT_PUBLIC_STREAM_VIDEO_ID ?? "";
+export const hlsSrc = "/movie/index.m3u8";
