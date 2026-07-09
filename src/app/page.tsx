@@ -1,6 +1,7 @@
 import { AnalyticsInit } from "@/components/AnalyticsInit";
 import { CommentBox } from "@/components/CommentBox";
 import { CommentFeed } from "@/components/CommentFeed";
+import { DeveloperBadge } from "@/components/DeveloperBadge";
 import { JsonLd } from "@/components/JsonLd";
 import { ReactionButtons } from "@/components/ReactionButtons";
 import { ShareButton } from "@/components/ShareButton";
@@ -12,6 +13,7 @@ export default function Home() {
     <div className="min-h-full bg-black text-zinc-100">
       <JsonLd />
       <AnalyticsInit />
+      <DeveloperBadge />
       <a
         href="#player"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-1.5 focus:text-sm focus:text-black"
@@ -174,12 +176,24 @@ export default function Home() {
           <CommentFeed />
         </section>
 
-        <footer className="mt-4 border-t border-white/5 pt-6 text-xs text-zinc-500">
+        <footer className="mt-4 flex flex-col gap-3 border-t border-white/5 pt-6 text-xs text-zinc-500">
           <p>
             Streaming HLS via Cloudflare Workers Static Assets. Reactions and
             comments powered by Supabase. Not affiliated with the film&apos;s
             producers or distributors — a fan-made tribute to Jaswant Singh
             Khalra.
+          </p>
+          <p>
+            Built by{" "}
+            <a
+              href="https://jaswinder.info/"
+              target="_blank"
+              rel="noopener noreferrer author"
+              className="rounded text-zinc-300 underline-offset-4 hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              Jaswinder Singh
+            </a>
+            .
           </p>
         </footer>
       </main>
