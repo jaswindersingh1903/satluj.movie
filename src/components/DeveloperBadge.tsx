@@ -5,7 +5,7 @@ export function DeveloperBadge() {
       target="_blank"
       rel="noopener noreferrer author"
       aria-label="Built by Jaswinder Singh — jaswinder.info"
-      className="group fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-300 shadow-lg ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-6 sm:right-6"
+      className="group fixed bottom-4 left-4 z-40 inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-300 shadow-lg ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-6 sm:left-6"
     >
       <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-[10px] font-semibold text-black">
         JS
