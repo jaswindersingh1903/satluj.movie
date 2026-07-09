@@ -1,23 +1,95 @@
 "use client";
 
-import { useState } from "react";
-import { trackEvent } from "@/lib/analytics";
+import { useEffect, useState } from "react";
+import { getVisitorId, trackEvent } from "@/lib/analytics";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 type Reaction = "like" | "dislike" | null;
+type Counts = { likes: number; dislikes: number };
 
 export function ReactionButtons() {
   const [reaction, setReaction] = useState<Reaction>(null);
+  const [counts, setCounts] = useState<Counts>({ likes: 0, dislikes: 0 });
 
-  const toggle = (next: Exclude<Reaction, null>) => {
-    setReaction((current) => {
-      const nextValue = current === next ? null : next;
-      trackEvent(
-        nextValue ? `reaction_${nextValue}` : "reaction_cleared",
-        { previous: current },
-      );
-      return nextValue;
-    });
+  useEffect(() => {
+    const client = getSupabase();
+    if (!client) return;
+    const visitorId = getVisitorId();
+    let mounted = true;
+
+    client
+      .from("counters")
+      .select("likes,dislikes")
+      .eq("id", "reactions")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (mounted && data) setCounts({ likes: data.likes, dislikes: data.dislikes });
+      });
+
+    client
+      .from("reactions")
+      .select("value")
+      .eq("session_id", visitorId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (mounted && data) {
+          setReaction(data.value === 1 ? "like" : "dislike");
+        }
+      });
+
+    const channel = client
+      .channel("counters-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "counters",
+          filter: "id=eq.reactions",
+        },
+        (payload) => {
+          const row = payload.new as Counts;
+          if (row) setCounts({ likes: row.likes, dislikes: row.dislikes });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      client.removeChannel(channel);
+    };
+  }, []);
+
+  const toggle = async (next: Exclude<Reaction, null>) => {
+    const nextValue: Reaction = reaction === next ? null : next;
+    const previous = reaction;
+    setReaction(nextValue);
+    trackEvent(
+      nextValue ? `reaction_${nextValue}` : "reaction_cleared",
+      { previous },
+    );
+
+    const client = getSupabase();
+    if (!client) return;
+    const visitorId = getVisitorId();
+
+    if (nextValue === null) {
+      await client.from("reactions").delete().eq("session_id", visitorId);
+      return;
+    }
+
+    const numeric = nextValue === "like" ? 1 : -1;
+    await client.from("reactions").upsert(
+      {
+        session_id: visitorId,
+        value: numeric,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "session_id" },
+    );
   };
+
+  const showCounts = isSupabaseConfigured;
 
   return (
     <div
@@ -40,7 +112,7 @@ export function ReactionButtons() {
         <ThumbUp aria-hidden />
         <span>Like</span>
         <span className="tabular-nums text-zinc-400" aria-hidden>
-          —
+          {showCounts ? counts.likes : "—"}
         </span>
       </button>
 
@@ -59,13 +131,9 @@ export function ReactionButtons() {
         <ThumbDown aria-hidden />
         <span>Dislike</span>
         <span className="tabular-nums text-zinc-400" aria-hidden>
-          —
+          {showCounts ? counts.dislikes : "—"}
         </span>
       </button>
-
-      <p className="text-xs text-zinc-500" aria-live="polite">
-        Reactions are local only until Part B.
-      </p>
     </div>
   );
 }

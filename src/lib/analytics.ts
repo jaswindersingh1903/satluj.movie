@@ -1,4 +1,5 @@
 const VISITOR_KEY = "satluj:visitor";
+const NAME_KEY = "satluj:displayName";
 const CONTEXT_KEY = "satluj:context";
 const EVENTS_KEY = "satluj:events";
 const PROGRESS_KEY = "satluj:progress";
@@ -69,6 +70,29 @@ function newId(): string {
     return window.crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+const DISPLAY_ADJ = [
+  "Curious", "Brave", "Silent", "Golden", "Roaming", "Fearless",
+  "Wandering", "Vibrant", "Loyal", "Radiant", "Nimble", "Bold",
+  "Quiet", "Sharp", "Gentle", "Kindred", "Steady", "Wild",
+];
+const DISPLAY_NOUN = [
+  "Otter", "Falcon", "Willow", "Sparrow", "Fox", "Deer",
+  "Tiger", "Owl", "Bear", "Wolf", "Panda", "Cobra",
+  "Yak", "Crane", "Ibex", "Heron", "Mynah", "Peacock",
+];
+
+export function getDisplayName(): string {
+  const store = ls();
+  const existing = store?.getItem(NAME_KEY);
+  if (existing) return existing;
+  const adj = DISPLAY_ADJ[Math.floor(Math.random() * DISPLAY_ADJ.length)];
+  const noun = DISPLAY_NOUN[Math.floor(Math.random() * DISPLAY_NOUN.length)];
+  const num = Math.floor(Math.random() * 90) + 10;
+  const name = `${adj}${noun}${num}`;
+  store?.setItem(NAME_KEY, name);
+  return name;
 }
 
 export function getVisitorId(): string {

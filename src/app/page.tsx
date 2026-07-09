@@ -1,4 +1,6 @@
 import { AnalyticsInit } from "@/components/AnalyticsInit";
+import { CommentBox } from "@/components/CommentBox";
+import { CommentFeed } from "@/components/CommentFeed";
 import { ReactionButtons } from "@/components/ReactionButtons";
 import { ShareButton } from "@/components/ShareButton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -110,8 +112,19 @@ export default function Home() {
           </div>
         </section>
 
+        <section
+          id="comments"
+          aria-label="Comments"
+          className="flex flex-col gap-5"
+        >
+          <h2 className="text-lg font-medium text-zinc-200">Comments</h2>
+          <CommentBox />
+          <CommentFeed />
+        </section>
+
         <footer className="mt-4 border-t border-white/5 pt-6 text-xs text-zinc-500">
-          Adaptive streaming via Cloudflare Stream. Comments and live counts arrive in Part B.
+          Streamed via Cloudflare Workers Static Assets. Reactions and comments
+          powered by Supabase.
         </footer>
       </main>
     </div>
