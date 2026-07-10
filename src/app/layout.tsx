@@ -100,6 +100,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        {/* Buy Me a Coffee widget — temporarily hidden.
+            Uncomment to re-enable. Must stay a plain <script> tag at
+            end-of-body (no async) so its DOMContentLoaded listener
+            registers before the event fires.
         <script
           src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
           data-name="BMC-Widget"
@@ -112,6 +116,7 @@ export default function RootLayout({
           data-x_margin="18"
           data-y_margin="18"
         />
+        */}
       </body>
     </html>
   );
