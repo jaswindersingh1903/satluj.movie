@@ -18,10 +18,11 @@ import {
   type SourceRow,
 } from "@/lib/stats";
 
-// SHA-256 of the default passphrase "satluj-admin-2026".
-// Change this hash to require a different passphrase.
+// SHA-256 of the current passphrase. Rotate by hashing a new
+// passphrase with:
+//   node -e "console.log(require('crypto').createHash('sha256').update('NEW').digest('hex'))"
 const EXPECTED_HASH =
-  "e08cd353bcda0f10cb1d595d62922bf55d34649e63c41153bd71caf28fe2d4bb";
+  "289c8e35b158b11ed18761ba15ba411e83e138ad9f88dd0c3a06872889297fe0";
 const UNLOCK_KEY = "satluj:stats-unlocked";
 
 async function sha256(msg: string): Promise<string> {
