@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase } from "@/lib/supabase";
 import {
   loadDaily,
@@ -20,113 +19,76 @@ import {
   type SourceRow,
 } from "@/lib/stats";
 
-type AuthState =
-  | { kind: "loading" }
-  | { kind: "signed_out" }
-  | { kind: "signed_in_non_admin"; user: User }
-  | { kind: "signed_in_admin"; user: User };
+// SHA-256 of "<username>:<password>". Rotate by hashing new credentials:
+//   node -e "console.log(require('crypto').createHash('sha256').update('user:pass').digest('hex'))"
+const EXPECTED_HASH =
+  "90b9f68c6e6011d69b1cacce6f6df29e3d9086e258d047804b93488f45f1a6f9";
+const UNLOCK_KEY = "satluj:stats-unlocked";
 
-export default function StatsPage() {
-  const [state, setState] = useState<AuthState>({ kind: "loading" });
-
-  useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      setState({ kind: "signed_out" });
-      return;
-    }
-
-    const resolve = async (session: Session | null) => {
-      if (!session) {
-        setState({ kind: "signed_out" });
-        return;
-      }
-      const { data, error } = await supabase.rpc("is_admin");
-      if (error || !data) {
-        setState({ kind: "signed_in_non_admin", user: session.user });
-      } else {
-        setState({ kind: "signed_in_admin", user: session.user });
-      }
-    };
-
-    supabase.auth.getSession().then(({ data }) => resolve(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
-      resolve(session),
-    );
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  if (state.kind === "loading") return <Centered>Checking session…</Centered>;
-  if (state.kind === "signed_out") return <SignIn />;
-  if (state.kind === "signed_in_non_admin")
-    return <NotAdmin email={state.user.email ?? "unknown"} />;
-  return <Dashboard user={state.user} />;
+async function sha256(msg: string): Promise<string> {
+  const buf = new TextEncoder().encode(msg);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-function SignIn() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
+export default function StatsPage() {
+  const [unlocked, setUnlocked] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (sessionStorage.getItem(UNLOCK_KEY) === "yes") setUnlocked(true);
+  }, []);
+
+  const attempt = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const supabase = getSupabase();
-    if (!supabase) {
-      setError("Supabase is not configured.");
-      return;
+    const hash = await sha256(`${username}:${password}`);
+    if (hash === EXPECTED_HASH) {
+      sessionStorage.setItem(UNLOCK_KEY, "yes");
+      setUnlocked(true);
+    } else {
+      setError("Wrong username or password.");
     }
-    setBusy(true);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/stats`,
-        // Do not auto-create users. Only emails that already exist in
-        // auth.users (added via Supabase → Authentication → Users) can
-        // receive a magic link. Unknown emails get "User not allowed".
-        shouldCreateUser: false,
-      },
-    });
-    setBusy(false);
-    if (err) setError(err.message);
-    else setSent(true);
   };
 
-  return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4">
-      <div className="w-full space-y-1">
-        <h1 className="text-lg font-medium text-zinc-200">Sign in to stats</h1>
-        <p className="text-xs text-zinc-500">
-          Magic link. Only allowlisted admin emails see the dashboard.
-        </p>
-      </div>
-      {sent ? (
-        <p className="w-full rounded-lg bg-white/5 p-4 text-sm text-zinc-200 ring-1 ring-white/10">
-          Link sent to <strong>{email}</strong>. Open your inbox on this device
-          to complete sign-in.
-        </p>
-      ) : (
-        <form onSubmit={submit} className="flex w-full flex-col gap-3">
-          <label htmlFor="email" className="sr-only">
-            Email
+  if (!unlocked) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4">
+        <h1 className="text-lg font-medium text-zinc-200">Stats</h1>
+        <form onSubmit={attempt} className="flex w-full flex-col gap-3">
+          <label htmlFor="u" className="sr-only">
+            Username
           </label>
           <input
-            id="email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            id="u"
+            type="text"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            className="rounded-lg bg-white/5 px-4 py-3 text-sm text-zinc-100 ring-1 ring-white/10 placeholder:text-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          />
+          <label htmlFor="p" className="sr-only">
+            Password
+          </label>
+          <input
+            id="p"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
             className="rounded-lg bg-white/5 px-4 py-3 text-sm text-zinc-100 ring-1 ring-white/10 placeholder:text-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           />
           <button
             type="submit"
-            disabled={busy}
-            className="rounded-full bg-white py-2 text-sm font-medium text-black transition hover:bg-zinc-200 disabled:opacity-40"
+            className="rounded-full bg-white py-2 text-sm font-medium text-black transition hover:bg-zinc-200"
           >
-            {busy ? "Sending…" : "Send magic link"}
+            Unlock
           </button>
           {error && (
             <p role="alert" className="text-xs text-rose-300">
@@ -134,42 +96,18 @@ function SignIn() {
             </p>
           )}
         </form>
-      )}
-    </main>
-  );
+        <p className="text-center text-xs text-zinc-500">
+          Data on this page is queryable via the public Supabase anon key.
+          This gate is obscurity, not access control.
+        </p>
+      </main>
+    );
+  }
+
+  return <Dashboard />;
 }
 
-function NotAdmin({ email }: { email: string }) {
-  const signOut = async () => {
-    await getSupabase()?.auth.signOut();
-  };
-  return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-lg font-medium text-zinc-200">Not authorised</h1>
-      <p className="text-sm text-zinc-400">
-        You are signed in as <strong>{email}</strong>, but this account is not
-        on the admin allowlist.
-      </p>
-      <button
-        type="button"
-        onClick={signOut}
-        className="rounded-full bg-white/5 px-4 py-1.5 text-xs text-zinc-200 ring-1 ring-white/10 hover:bg-white/10"
-      >
-        Sign out
-      </button>
-    </main>
-  );
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4">
-      <p className="text-sm text-zinc-400">{children}</p>
-    </main>
-  );
-}
-
-function Dashboard({ user }: { user: User }) {
+function Dashboard() {
   const [funnel, setFunnel] = useState<Funnel | null>(null);
   const [sentiment, setSentiment] = useState<Sentiment | null>(null);
   const [daily, setDaily] = useState<DailyRow[]>([]);
@@ -220,18 +158,13 @@ function Dashboard({ user }: { user: User }) {
     };
   }, [reloadKey]);
 
-  const signOut = async () => {
-    await getSupabase()?.auth.signOut();
-  };
-
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Satluj stats</h1>
           <p className="text-xs text-zinc-500">
-            {loading ? "Loading…" : "Live from Supabase."} Signed in as{" "}
-            <span className="text-zinc-300">{user.email}</span>.
+            {loading ? "Loading…" : "Live from Supabase."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -244,10 +177,13 @@ function Dashboard({ user }: { user: User }) {
           </button>
           <button
             type="button"
-            onClick={signOut}
+            onClick={() => {
+              sessionStorage.removeItem(UNLOCK_KEY);
+              location.reload();
+            }}
             className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-400 ring-1 ring-white/10 hover:bg-white/10"
           >
-            Sign out
+            Lock
           </button>
         </div>
       </header>
