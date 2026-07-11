@@ -55,11 +55,15 @@ insert into public.counters (id, likes, dislikes)
 values ('reactions', 0, 0)
 on conflict (id) do nothing;
 
--- Auto-adjust counters when reactions change. Self-healing: the row is
--- upserted at the top of every trigger call so the counter never gets
--- stuck at NULL if the seed insert was skipped.
+-- Auto-adjust counters when reactions change. Self-healing (upserts the
+-- counter row on every call) and SECURITY DEFINER so it can update the
+-- counters table even though anon has no UPDATE policy on it.
 create or replace function public.tally_reactions()
-returns trigger language plpgsql as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
   insert into public.counters (id, likes, dislikes)
   values ('reactions', 0, 0)
