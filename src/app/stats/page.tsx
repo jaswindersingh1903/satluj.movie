@@ -82,7 +82,10 @@ function SignIn() {
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/stats`,
-        shouldCreateUser: true,
+        // Do not auto-create users. Only emails that already exist in
+        // auth.users (added via Supabase → Authentication → Users) can
+        // receive a magic link. Unknown emails get "User not allowed".
+        shouldCreateUser: false,
       },
     });
     setBusy(false);
