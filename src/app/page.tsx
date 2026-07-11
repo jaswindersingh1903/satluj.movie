@@ -2,6 +2,7 @@ import { AnalyticsInit } from "@/components/AnalyticsInit";
 import { CommentBox } from "@/components/CommentBox";
 import { CommentFeed } from "@/components/CommentFeed";
 import { DeveloperBadge } from "@/components/DeveloperBadge";
+import { DownloadButton } from "@/components/DownloadButton";
 import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
 import { ReactionButtons } from "@/components/ReactionButtons";
@@ -74,6 +75,7 @@ export default function Home() {
         >
           <ReactionButtons />
           <ShareButton />
+          <DownloadButton />
         </section>
 
         <section aria-label="Synopsis" className="flex flex-col gap-3">

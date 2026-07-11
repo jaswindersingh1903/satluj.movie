@@ -20,7 +20,12 @@ export function getSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured) return null;
   if (!client) {
     client = createClient(url, anonKey, {
-      auth: { persistSession: false },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: "satluj-auth",
+      },
       realtime: { params: { eventsPerSecond: 5 } },
     });
   }
