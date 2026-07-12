@@ -47,6 +47,13 @@ export type PlatformRow = {
   shares: number;
 };
 
+export type PendingComment = {
+  id: string;
+  display_name: string;
+  body: string;
+  created_at: string;
+};
+
 async function count(
   table: "sessions" | "events" | "comments",
   filter?: (q: ReturnType<typeof buildQuery>) => ReturnType<typeof buildQuery>,
@@ -231,6 +238,50 @@ export async function loadSources(): Promise<SourceRow[]> {
     .map(([source, visitors]) => ({ source, visitors }))
     .sort((a, b) => b.visitors - a.visitors)
     .slice(0, 20);
+}
+
+// --- Comment moderation ---
+// The /stats page is passphrase-gated on the client and uses the public anon
+// key, so these go through SECURITY DEFINER RPCs that verify the passphrase
+// server-side. `secret` is the same "<username>:<password>" string the gate
+// checks; without it the RPCs raise `unauthorized`.
+
+export async function loadPendingComments(
+  secret: string,
+): Promise<PendingComment[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("admin_pending_comments", {
+    pass: secret,
+  });
+  if (error) throw error;
+  return (data ?? []) as PendingComment[];
+}
+
+export async function approveComment(
+  secret: string,
+  id: string,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.rpc("admin_approve_comment", {
+    pass: secret,
+    cid: id,
+  });
+  return !error;
+}
+
+export async function rejectComment(
+  secret: string,
+  id: string,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.rpc("admin_reject_comment", {
+    pass: secret,
+    cid: id,
+  });
+  return !error;
 }
 
 export async function loadSharePlatforms(): Promise<PlatformRow[]> {

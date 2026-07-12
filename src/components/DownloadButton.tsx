@@ -4,17 +4,39 @@ import { useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { hlsSrc } from "@/lib/movie";
 
-// The film is served as ~1000 HLS MPEG-TS segments, not a single file.
-// MPEG-TS segments are concatenable, so we fetch the playlist, pull every
-// segment in order, join them into one blob, and save it as satluj.ts —
-// a single, playable file. No popup, no external tool.
-const PLAYLIST_URL = hlsSrc;
-const BASE_URL = hlsSrc.slice(0, hlsSrc.lastIndexOf("/") + 1);
+// The film is served as HLS. hlsSrc is a master playlist that points at
+// per-quality variant playlists, each with ~1000 MPEG-TS segments.
+// MPEG-TS is concatenable, so we resolve to the highest-bandwidth
+// variant, pull every segment in order, join them into one blob, and
+// save it as satluj.ts — a single, playable file.
 
 type State =
   | { kind: "idle" }
   | { kind: "downloading"; done: number; total: number }
   | { kind: "error" };
+
+async function resolveVariant(url: string): Promise<{ text: string; baseUrl: string }> {
+  const text = await fetch(url).then((r) => r.text());
+  if (!text.includes("#EXT-X-STREAM-INF")) {
+    return { text, baseUrl: url.slice(0, url.lastIndexOf("/") + 1) };
+  }
+  const lines = text.split("\n").map((l) => l.trim());
+  let bestBw = 0;
+  let bestPath = "";
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith("#EXT-X-STREAM-INF")) continue;
+    const bw = Number(lines[i].match(/BANDWIDTH=(\d+)/)?.[1] ?? 0);
+    const next = lines[i + 1];
+    if (next && !next.startsWith("#") && bw > bestBw) {
+      bestBw = bw;
+      bestPath = next;
+    }
+  }
+  if (!bestPath) throw new Error("Master playlist had no variants");
+  const masterBase = url.slice(0, url.lastIndexOf("/") + 1);
+  const variantUrl = new URL(bestPath, window.location.origin + masterBase).toString();
+  return resolveVariant(variantUrl);
+}
 
 export function DownloadButton() {
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -25,7 +47,7 @@ export function DownloadButton() {
     setState({ kind: "downloading", done: 0, total: 0 });
 
     try {
-      const playlist = await fetch(PLAYLIST_URL).then((r) => r.text());
+      const { text: playlist, baseUrl } = await resolveVariant(hlsSrc);
       const segments = playlist
         .split("\n")
         .map((l) => l.trim())
@@ -35,7 +57,7 @@ export function DownloadButton() {
 
       const parts: BlobPart[] = [];
       for (let i = 0; i < segments.length; i++) {
-        const res = await fetch(BASE_URL + segments[i]);
+        const res = await fetch(baseUrl + segments[i]);
         if (!res.ok) throw new Error(`Segment ${segments[i]} failed`);
         parts.push(await res.arrayBuffer());
         setState({ kind: "downloading", done: i + 1, total: segments.length });

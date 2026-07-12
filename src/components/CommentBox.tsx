@@ -11,6 +11,7 @@ export function CommentBox() {
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [displayName, setDisplayName] = useState("you");
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function CommentBox() {
     }
     trackEvent("comment_post", { length: trimmed.length });
     setBody("");
+    setSubmitted(true);
   };
 
   return (
@@ -60,7 +62,10 @@ export function CommentBox() {
       <textarea
         id="comment-body"
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => {
+          setBody(e.target.value);
+          if (submitted) setSubmitted(false);
+        }}
         placeholder="Leave a thought…"
         maxLength={MAX_LEN}
         rows={3}
@@ -84,6 +89,11 @@ export function CommentBox() {
           </button>
         </div>
       </div>
+      {submitted && !error && (
+        <p role="status" className="text-xs text-emerald-300">
+          Thanks — your comment is awaiting review and will appear once approved.
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-xs text-rose-300">
           {error}

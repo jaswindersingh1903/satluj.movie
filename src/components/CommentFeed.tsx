@@ -8,6 +8,7 @@ type Comment = {
   display_name: string;
   body: string;
   created_at: string;
+  approved?: boolean;
 };
 
 export function CommentFeed() {
@@ -40,6 +41,8 @@ export function CommentFeed() {
         { event: "INSERT", schema: "public", table: "comments" },
         (payload) => {
           const row = payload.new as Comment;
+          // Moderation: never surface a comment that isn't approved yet.
+          if (row.approved === false) return;
           setComments((prev) => [row, ...prev].slice(0, 100));
         },
       )

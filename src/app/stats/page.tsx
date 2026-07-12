@@ -1,19 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
 import {
+  approveComment,
   loadDaily,
   loadDevices,
   loadFunnel,
   loadGeo,
+  loadPendingComments,
   loadSentiment,
   loadSharePlatforms,
   loadSources,
+  rejectComment,
   type DailyRow,
   type DeviceRow,
   type Funnel,
   type GeoRow,
+  type PendingComment,
   type PlatformRow,
   type Sentiment,
   type SourceRow,
@@ -23,7 +27,9 @@ import {
 //   node -e "console.log(require('crypto').createHash('sha256').update('user:pass').digest('hex'))"
 const EXPECTED_HASH =
   "90b9f68c6e6011d69b1cacce6f6df29e3d9086e258d047804b93488f45f1a6f9";
-const UNLOCK_KEY = "satluj:stats-unlocked";
+// We keep the raw "<username>:<password>" in sessionStorage after unlock so the
+// moderation RPCs can re-verify it server-side. Same trust boundary as the gate.
+const SECRET_KEY = "satluj:stats-secret";
 
 async function sha256(msg: string): Promise<string> {
   const buf = new TextEncoder().encode(msg);
@@ -34,28 +40,30 @@ async function sha256(msg: string): Promise<string> {
 }
 
 export default function StatsPage() {
-  const [unlocked, setUnlocked] = useState(false);
+  const [secret, setSecret] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(UNLOCK_KEY) === "yes") setUnlocked(true);
+    const s = sessionStorage.getItem(SECRET_KEY);
+    if (s) setSecret(s);
   }, []);
 
   const attempt = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const hash = await sha256(`${username}:${password}`);
+    const combined = `${username}:${password}`;
+    const hash = await sha256(combined);
     if (hash === EXPECTED_HASH) {
-      sessionStorage.setItem(UNLOCK_KEY, "yes");
-      setUnlocked(true);
+      sessionStorage.setItem(SECRET_KEY, combined);
+      setSecret(combined);
     } else {
       setError("Wrong username or password.");
     }
   };
 
-  if (!unlocked) {
+  if (!secret) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4">
         <h1 className="text-lg font-medium text-zinc-200">Stats</h1>
@@ -104,10 +112,10 @@ export default function StatsPage() {
     );
   }
 
-  return <Dashboard />;
+  return <Dashboard secret={secret} />;
 }
 
-function Dashboard() {
+function Dashboard({ secret }: { secret: string }) {
   const [funnel, setFunnel] = useState<Funnel | null>(null);
   const [sentiment, setSentiment] = useState<Sentiment | null>(null);
   const [daily, setDaily] = useState<DailyRow[]>([]);
@@ -178,7 +186,7 @@ function Dashboard() {
           <button
             type="button"
             onClick={() => {
-              sessionStorage.removeItem(UNLOCK_KEY);
+              sessionStorage.removeItem(SECRET_KEY);
               location.reload();
             }}
             className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-400 ring-1 ring-white/10 hover:bg-white/10"
@@ -187,6 +195,8 @@ function Dashboard() {
           </button>
         </div>
       </header>
+
+      <ModerationPanel secret={secret} />
 
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <Metric label="Visitors" value={funnel?.visitors ?? 0} />
@@ -257,6 +267,105 @@ function Dashboard() {
         </Panel>
       </div>
     </main>
+  );
+}
+
+function ModerationPanel({ secret }: { secret: string }) {
+  const [pending, setPending] = useState<PendingComment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    loadPendingComments(secret)
+      .then(setPending)
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(false));
+  }, [secret]);
+
+  useEffect(refresh, [refresh]);
+
+  const act = async (id: string, kind: "approve" | "reject") => {
+    setBusy(id);
+    const ok =
+      kind === "approve"
+        ? await approveComment(secret, id)
+        : await rejectComment(secret, id);
+    setBusy(null);
+    if (ok) setPending((prev) => prev.filter((c) => c.id !== id));
+    else setError(`Failed to ${kind} — try again.`);
+  };
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl bg-white/5 p-5 ring-1 ring-white/10">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium text-zinc-200">
+          Pending comments
+          {pending.length > 0 && (
+            <span className="ml-2 rounded-full bg-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-200">
+              {pending.length}
+            </span>
+          )}
+        </h2>
+        <button
+          type="button"
+          onClick={refresh}
+          className="rounded-full bg-white/5 px-3 py-1 text-xs text-zinc-300 ring-1 ring-white/10 hover:bg-white/10"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-rose-300">{error}</p>}
+
+      {loading ? (
+        <p className="text-xs text-zinc-500">Loading…</p>
+      ) : pending.length === 0 ? (
+        <p className="text-xs text-zinc-500">Nothing awaiting review. 🎉</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {pending.map((c) => (
+            <li
+              key={c.id}
+              className="flex flex-col gap-2 rounded-lg bg-black/30 p-3 ring-1 ring-white/5 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <div className="flex min-w-0 flex-col gap-1">
+                <div className="text-xs text-zinc-500">
+                  <span className="text-zinc-300">{c.display_name}</span>
+                  <span aria-hidden> · </span>
+                  <time dateTime={c.created_at}>
+                    {new Date(c.created_at).toLocaleString()}
+                  </time>
+                </div>
+                <p className="whitespace-pre-wrap break-words text-sm text-zinc-100">
+                  {c.body}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  disabled={busy === c.id}
+                  onClick={() => act(c.id, "approve")}
+                  className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 hover:bg-emerald-500/30 disabled:opacity-40"
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  disabled={busy === c.id}
+                  onClick={() => act(c.id, "reject")}
+                  className="rounded-full bg-rose-500/10 px-3 py-1 text-xs font-medium text-rose-200 ring-1 ring-rose-400/30 hover:bg-rose-500/20 disabled:opacity-40"
+                >
+                  Reject
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

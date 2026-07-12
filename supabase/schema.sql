@@ -97,7 +97,7 @@ create trigger tally_reactions_trg
 after insert or update or delete on public.reactions
 for each row execute function public.tally_reactions();
 
--- Auto-published comments.
+-- Comments — moderated: hidden until an admin approves them via /stats.
 create table if not exists public.comments (
   id            uuid primary key default uuid_generate_v4(),
   session_id    uuid not null references public.sessions(id) on delete cascade,
@@ -106,6 +106,21 @@ create table if not exists public.comments (
   created_at    timestamptz not null default now()
 );
 create index if not exists comments_created_idx on public.comments (created_at desc);
+
+-- Moderation flag. Backfill existing rows as approved only on first creation of
+-- the column, so re-running this file never clobbers moderation state.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='comments' and column_name='approved'
+  ) then
+    alter table public.comments add column approved boolean not null default false;
+    update public.comments set approved = true;  -- grandfather pre-existing comments
+  end if;
+end $$;
+create index if not exists comments_pending_idx
+  on public.comments (created_at desc) where approved = false;
 
 -- Row Level Security
 alter table public.sessions  enable row level security;
@@ -138,15 +153,73 @@ create policy reactions_insert_own on public.reactions for insert with check (tr
 create policy reactions_update_own on public.reactions for update using (true) with check (true);
 create policy reactions_delete_own on public.reactions for delete using (true);
 
--- Comments: anyone can read + insert; no edit/delete.
-drop policy if exists comments_read_all   on public.comments;
-drop policy if exists comments_insert_own on public.comments;
-create policy comments_read_all   on public.comments for select using (true);
-create policy comments_insert_own on public.comments for insert with check (true);
+-- Comments: public reads only approved rows; anyone can insert but cannot
+-- self-approve. Approve/reject happen through the SECURITY DEFINER RPCs below.
+drop policy if exists comments_read_all      on public.comments;
+drop policy if exists comments_read_approved on public.comments;
+drop policy if exists comments_insert_own    on public.comments;
+create policy comments_read_approved on public.comments for select using (approved = true);
+create policy comments_insert_own    on public.comments for insert with check (approved = false);
 
 -- Counters: read-only for anon (trigger maintains them).
 drop policy if exists counters_read_all on public.counters;
 create policy counters_read_all on public.counters for select using (true);
+
+-- Comment moderation RPCs.
+-- The /stats page is passphrase-gated on the client and talks to Supabase with
+-- the public anon key (no authenticated session), so moderation can't be gated
+-- by RLS alone. These SECURITY DEFINER functions verify the passphrase
+-- server-side, so approving/rejecting requires the secret, not just the anon key.
+create extension if not exists pgcrypto with schema extensions;
+
+-- Private secret store (RLS on, no policies => only SECURITY DEFINER fns read it).
+create table if not exists public.app_secrets (
+  key   text primary key,
+  value text not null
+);
+alter table public.app_secrets enable row level security;
+-- SHA-256 of "<username>:<password>" — keep in sync with EXPECTED_HASH in
+-- src/app/stats/page.tsx. Rotate by updating both.
+insert into public.app_secrets (key, value)
+values ('stats_pass_sha256', '90b9f68c6e6011d69b1cacce6f6df29e3d9086e258d047804b93488f45f1a6f9')
+on conflict (key) do update set value = excluded.value;
+
+create or replace function public.verify_stats_pass(pass text)
+returns boolean language sql stable security definer
+set search_path = public, extensions as $$
+  select exists (
+    select 1 from public.app_secrets
+    where key = 'stats_pass_sha256'
+      and value = encode(extensions.digest(pass, 'sha256'), 'hex')
+  );
+$$;
+revoke all on function public.verify_stats_pass(text) from public, anon, authenticated;
+
+create or replace function public.admin_pending_comments(pass text)
+returns setof public.comments language plpgsql stable security definer
+set search_path = public as $$
+begin
+  if not public.verify_stats_pass(pass) then raise exception 'unauthorized'; end if;
+  return query select * from public.comments where approved = false order by created_at desc;
+end $$;
+
+create or replace function public.admin_approve_comment(pass text, cid uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.verify_stats_pass(pass) then raise exception 'unauthorized'; end if;
+  update public.comments set approved = true where id = cid;
+end $$;
+
+create or replace function public.admin_reject_comment(pass text, cid uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.verify_stats_pass(pass) then raise exception 'unauthorized'; end if;
+  delete from public.comments where id = cid;
+end $$;
+
+grant execute on function public.admin_pending_comments(text)      to anon, authenticated;
+grant execute on function public.admin_approve_comment(text, uuid) to anon, authenticated;
+grant execute on function public.admin_reject_comment(text, uuid)  to anon, authenticated;
 
 -- Enable realtime broadcasting on the tables the client subscribes to.
 alter publication supabase_realtime add table public.reactions;

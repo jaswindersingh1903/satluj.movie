@@ -45,3 +45,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Raw source video kept for local re-encoding — never committed.
+public/movie/1080 with sub/
+*.mkv
+*.mp4

@@ -174,7 +174,7 @@ export default function Home() {
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-medium text-zinc-200">Comments</h2>
             <span className="text-xs text-zinc-500">
-              Auto-published. Be kind.
+              Reviewed before publishing. Be kind.
             </span>
           </div>
           <CommentBox />
