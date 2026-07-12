@@ -38,6 +38,7 @@ export function VideoPlayer({ title, src }: Props) {
 
     if (Hls.isSupported()) {
       hls = new Hls({ enableWorker: true });
+      hls.subtitleDisplay = false; // captions start off; toggled by the button
       hlsRef.current = hls;
       hls.loadSource(source);
       hls.attachMedia(video);
@@ -169,10 +170,18 @@ export function VideoPlayer({ title, src }: Props) {
   const toggleCaptions = () => {
     const video = videoRef.current;
     if (!video) return;
-    const track = video.textTracks[0];
-    if (!track) return;
-    const next = track.mode !== "showing";
-    track.mode = next ? "showing" : "disabled";
+    const next = !captionsOn;
+    const hls = hlsRef.current;
+    if (hls && hls.subtitleTracks.length > 0) {
+      // hls.js path: drive the manifest's subtitle rendition.
+      hls.subtitleTrack = next ? 0 : -1;
+      hls.subtitleDisplay = next;
+    } else {
+      // Native HLS (iOS): toggle the text track the manifest provides.
+      const track = video.textTracks[0];
+      if (!track) return;
+      track.mode = next ? "showing" : "disabled";
+    }
     setCaptionsOn(next);
     trackEvent("video_captions_toggle", { on: next });
   };
@@ -190,12 +199,9 @@ export function VideoPlayer({ title, src }: Props) {
           crossOrigin="anonymous"
           className="absolute inset-0 h-full w-full bg-black object-contain"
         >
-          <track
-            kind="subtitles"
-            src="/movie/en.vtt"
-            srcLang="en"
-            label="English"
-          />
+          {/* Captions come from the Stream manifest's subtitle rendition
+              (via hls.js / native HLS) — no local <track>, which would
+              double up with it. */}
           Your browser does not support the video tag.
         </video>
         {resumeAt !== null && resumeAt > 5 && (
