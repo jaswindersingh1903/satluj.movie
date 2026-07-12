@@ -1,5 +1,5 @@
-import { VideoPlayer } from "@/components/VideoPlayer";
-import { movie, streamHlsSrc, streamVideoId } from "@/lib/movie";
+import { StreamDebugPlayer } from "@/components/StreamDebugPlayer";
+import { streamHlsSrc, streamVideoId } from "@/lib/movie";
 
 export const metadata = {
   title: "Stream test — Satluj",
@@ -17,7 +17,7 @@ export default function StreamTest() {
         </p>
 
         <div id="player">
-          <VideoPlayer title={movie.title} src={streamHlsSrc} />
+          <StreamDebugPlayer src={streamHlsSrc} />
         </div>
 
         <dl className="mt-6 space-y-1 text-[11px] text-zinc-500">
