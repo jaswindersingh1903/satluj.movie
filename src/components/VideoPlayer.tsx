@@ -23,7 +23,10 @@ export function VideoPlayer({ title, src }: Props) {
   const [resumeAt, setResumeAt] = useState<number | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [quality, setQuality] = useState<QualityChoice>("auto");
-  const [captionsOn, setCaptionsOn] = useState(false);
+  const [subTracks, setSubTracks] = useState<{ lang: string; name: string }[]>(
+    []
+  );
+  const [subLang, setSubLang] = useState<string | null>(null);
 
   useEffect(() => {
     const t = readTimestampParam();
@@ -44,6 +47,14 @@ export function VideoPlayer({ title, src }: Props) {
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
         setLevels(data.levels ?? []);
+      });
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_e, data) => {
+        setSubTracks(
+          data.subtitleTracks.map((t) => ({
+            lang: t.lang ?? "",
+            name: t.name ?? t.lang ?? "",
+          }))
+        );
       });
       let recoveries = 0;
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -75,6 +86,25 @@ export function VideoPlayer({ title, src }: Props) {
       hls?.destroy();
       hlsRef.current = null;
     };
+  }, [source]);
+
+  // Native HLS (iOS): mirror the manifest's text tracks into the menu.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || Hls.isSupported()) return;
+    const populate = () => {
+      const tracks: { lang: string; name: string }[] = [];
+      for (let i = 0; i < video.textTracks.length; i++) {
+        const tt = video.textTracks[i];
+        if (tt.kind === "subtitles" || tt.kind === "captions") {
+          tracks.push({ lang: tt.language, name: tt.label || tt.language });
+        }
+      }
+      setSubTracks(tracks);
+    };
+    video.textTracks.addEventListener("addtrack", populate);
+    populate();
+    return () => video.textTracks.removeEventListener("addtrack", populate);
   }, [source]);
 
   useEffect(() => {
@@ -167,23 +197,23 @@ export function VideoPlayer({ title, src }: Props) {
     trackEvent("video_quality_change", { to: next });
   };
 
-  const toggleCaptions = () => {
+  const chooseSubtitle = (lang: string | null) => {
     const video = videoRef.current;
-    if (!video) return;
-    const next = !captionsOn;
     const hls = hlsRef.current;
     if (hls && hls.subtitleTracks.length > 0) {
-      // hls.js path: drive the manifest's subtitle rendition.
-      hls.subtitleTrack = next ? 0 : -1;
-      hls.subtitleDisplay = next;
-    } else {
-      // Native HLS (iOS): toggle the text track the manifest provides.
-      const track = video.textTracks[0];
-      if (!track) return;
-      track.mode = next ? "showing" : "disabled";
+      // hls.js path: select the manifest subtitle rendition by language.
+      hls.subtitleTrack =
+        lang === null ? -1 : hls.subtitleTracks.findIndex((t) => t.lang === lang);
+      hls.subtitleDisplay = lang !== null;
+    } else if (video) {
+      // Native HLS (iOS): show the matching text track, hide the rest.
+      for (let i = 0; i < video.textTracks.length; i++) {
+        const tt = video.textTracks[i];
+        tt.mode = lang !== null && tt.language === lang ? "showing" : "disabled";
+      }
     }
-    setCaptionsOn(next);
-    trackEvent("video_captions_toggle", { on: next });
+    setSubLang(lang);
+    trackEvent("video_captions_toggle", { on: lang !== null, lang });
   };
 
   return (
@@ -228,20 +258,24 @@ export function VideoPlayer({ title, src }: Props) {
         aria-label="Player controls"
         className="flex flex-wrap items-center gap-2"
       >
-        <button
-          type="button"
-          onClick={toggleCaptions}
-          aria-pressed={captionsOn}
-          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${
-            captionsOn
-              ? "bg-emerald-500/20 text-emerald-200 ring-emerald-400/50"
-              : "bg-white/5 text-zinc-200 ring-white/10 hover:bg-white/10"
-          }`}
-        >
-          <CcIcon aria-hidden />
-          <span>Subtitles</span>
-          <span className="text-[10px] text-zinc-400">EN</span>
-        </button>
+        {subTracks.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 rounded-full bg-white/5 p-1 text-xs ring-1 ring-white/10">
+            <CcIcon aria-hidden className="mx-1 h-4 w-4 text-zinc-400" />
+            <QualityPill
+              label="Off"
+              active={subLang === null}
+              onClick={() => chooseSubtitle(null)}
+            />
+            {subTracks.map((t) => (
+              <QualityPill
+                key={t.lang}
+                label={langLabel(t.lang, t.name)}
+                active={subLang === t.lang}
+                onClick={() => chooseSubtitle(t.lang)}
+              />
+            ))}
+          </div>
+        )}
 
         {levels.length > 0 && (
           <div className="flex items-center gap-1 rounded-full bg-white/5 p-1 text-xs ring-1 ring-white/10">
@@ -294,6 +328,36 @@ function qualityLabel(lvl: Level): string {
   if (lvl.height) return `${lvl.height}p`;
   if (lvl.bitrate) return `${Math.round(lvl.bitrate / 1000)}kbps`;
   return "Level";
+}
+
+// Endonyms for the subtitle language pills.
+const LANG_NAMES: Record<string, string> = {
+  en: "English",
+  pa: "ਪੰਜਾਬੀ",
+  hi: "हिन्दी",
+  ur: "اردو",
+  es: "Español",
+  fr: "Français",
+  de: "Deutsch",
+  pt: "Português",
+  ar: "العربية",
+  bn: "বাংলা",
+  ta: "தமிழ்",
+  te: "తెలుగు",
+  gu: "ગુજરાતી",
+  mr: "मराठी",
+  zh: "中文",
+  ja: "日本語",
+  ko: "한국어",
+  ru: "Русский",
+  it: "Italiano",
+  tr: "Türkçe",
+  fa: "فارسی",
+};
+
+function langLabel(lang: string, name: string): string {
+  const base = lang.split("-")[0].toLowerCase();
+  return LANG_NAMES[base] ?? name ?? lang.toUpperCase();
 }
 
 function CcIcon(props: React.SVGProps<SVGSVGElement>) {
