@@ -44,14 +44,23 @@ export function VideoPlayer({ title, src }: Props) {
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
         setLevels(data.levels ?? []);
       });
+      let recoveries = 0;
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          setError("Playback error — try refreshing the page.");
-          trackEvent("video_error", {
-            fatal: true,
-            type: data.type,
-            details: data.details,
-          });
+        if (!data.fatal) return;
+        trackEvent("video_error", {
+          fatal: true,
+          type: data.type,
+          details: data.details,
+        });
+        // hls.js recommends recovering network/media errors before giving up.
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && recoveries < 3) {
+          recoveries++;
+          hls?.startLoad();
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && recoveries < 3) {
+          recoveries++;
+          hls?.recoverMediaError();
+        } else {
+          setError(`Playback error (${data.details}). Try refreshing.`);
         }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
