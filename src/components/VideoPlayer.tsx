@@ -11,11 +11,12 @@ import {
 } from "@/lib/analytics";
 import { playhead, readTimestampParam } from "@/lib/playhead";
 
-type Props = { title: string };
+type Props = { title: string; src?: string };
 
 type QualityChoice = "auto" | number;
 
-export function VideoPlayer({ title }: Props) {
+export function VideoPlayer({ title, src }: Props) {
+  const source = src ?? hlsSrc;
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function VideoPlayer({ title }: Props) {
     if (Hls.isSupported()) {
       hls = new Hls({ enableWorker: true });
       hlsRef.current = hls;
-      hls.loadSource(hlsSrc);
+      hls.loadSource(source);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
         setLevels(data.levels ?? []);
@@ -55,7 +56,7 @@ export function VideoPlayer({ title }: Props) {
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // iOS Safari: no MSE, use native HLS (no manual quality control)
-      video.src = hlsSrc;
+      video.src = source;
     } else {
       setError("Your browser does not support HLS playback.");
     }
@@ -64,7 +65,7 @@ export function VideoPlayer({ title }: Props) {
       hls?.destroy();
       hlsRef.current = null;
     };
-  }, []);
+  }, [source]);
 
   useEffect(() => {
     const video = videoRef.current;
