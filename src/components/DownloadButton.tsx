@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { trackEvent } from "@/lib/analytics";
-import { hlsSrc } from "@/lib/movie";
+import { localHlsSrc } from "@/lib/movie";
 
 // The film is served as HLS. hlsSrc is a master playlist that points at
 // per-quality variant playlists, each with ~1000 MPEG-TS segments.
@@ -47,7 +47,9 @@ export function DownloadButton() {
     setState({ kind: "downloading", done: 0, total: 0 });
 
     try {
-      const { text: playlist, baseUrl } = await resolveVariant(hlsSrc);
+      // Download stitches the self-hosted MPEG-TS segments (playback uses
+      // Cloudflare Stream, whose fMP4 segments aren't concat-downloadable).
+      const { text: playlist, baseUrl } = await resolveVariant(localHlsSrc);
       const segments = playlist
         .split("\n")
         .map((l) => l.trim())

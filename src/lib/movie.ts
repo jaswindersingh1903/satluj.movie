@@ -39,5 +39,6 @@ export const localHlsSrc = "/movie/index.m3u8";
 // Under evaluation on /test before promoting to the main page.
 export const streamHlsSrc = `https://customer-x5qvltm7pjj69m59.cloudflarestream.com/${streamVideoId}/manifest/video.m3u8`;
 
-// Default source for the main page: keep the working self-hosted stream.
-export const hlsSrc = localHlsSrc;
+// Main page plays from Cloudflare Stream. To roll back to the self-hosted
+// files (still shipped as a fallback), set this to localHlsSrc.
+export const hlsSrc = streamHlsSrc;
