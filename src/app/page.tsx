@@ -200,6 +200,12 @@ export default function Home() {
             </a>
             .
           </p>
+          <p className="text-[10px] text-zinc-600">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+            {process.env.NEXT_PUBLIC_BUILD_DATE
+              ? ` · ${process.env.NEXT_PUBLIC_BUILD_DATE}`
+              : ""}
+          </p>
         </footer>
       </main>
     </div>

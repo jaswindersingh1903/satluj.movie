@@ -35,9 +35,7 @@ export function VideoPlayer({ title }: Props) {
 
     let hls: Hls | null = null;
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = hlsSrc;
-    } else if (Hls.isSupported()) {
+    if (Hls.isSupported()) {
       hls = new Hls({ enableWorker: true });
       hlsRef.current = hls;
       hls.loadSource(hlsSrc);
@@ -55,6 +53,9 @@ export function VideoPlayer({ title }: Props) {
           });
         }
       });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      // iOS Safari: no MSE, use native HLS (no manual quality control)
+      video.src = hlsSrc;
     } else {
       setError("Your browser does not support HLS playback.");
     }

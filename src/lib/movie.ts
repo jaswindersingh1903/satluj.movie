@@ -28,5 +28,13 @@ export const movie = {
   ] as CastMember[],
 };
 
-export const streamVideoId = process.env.NEXT_PUBLIC_STREAM_VIDEO_ID ?? "";
-export const hlsSrc = "/movie/index.m3u8";
+export const streamVideoId =
+  process.env.NEXT_PUBLIC_STREAM_VIDEO_ID ??
+  "8c7069f9c6fbbf6fd64776720d667de7";
+
+// When a Cloudflare Stream video id is configured, play from Stream's
+// adaptive HLS manifest (multi-quality is handled server-side). Otherwise
+// fall back to the self-hosted HLS segments under public/movie.
+export const hlsSrc = streamVideoId
+  ? `https://videodelivery.net/${streamVideoId}/manifest/video.m3u8`
+  : "/movie/index.m3u8";

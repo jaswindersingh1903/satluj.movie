@@ -50,3 +50,5 @@ next-env.d.ts
 public/movie/1080 with sub/
 *.mkv
 *.mp4
+
+.env.upload
