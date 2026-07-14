@@ -1,0 +1,2 @@
+# Root now defaults to the /play route.
+/    /play/    301
